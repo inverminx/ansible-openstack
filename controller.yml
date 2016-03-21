@@ -1,0 +1,18 @@
+---
+- hosts: controller
+  sudo: yes
+  vars:
+  vars_files:
+    - vars/junoConfiguration.yml
+#   - osDetails: "--os-username {{ osUsername }} --os-password {{ osPassword }} --os-tenant-name {{ osTenantName }} --os-auth-url {{ osAuthUrl }} --os-region-name {{ osRegionName }} --os-tenant-id {{ osTenantID }}" 
+  
+  roles:
+   - installPackages 
+   - mysql
+   - rabbitmq
+   - keystone
+   - glance
+   - nova-controller
+   - neutron-controller
+   - cinder-controller
+   - dashboard

@@ -1,0 +1,96 @@
+---
+  - name: Get management network address of hosts
+    shell: ip addr show|grep {{managementNetworkPrefix}}|awk {'print $2'}|sed -r "s/\//\n/g"|grep {{managementNetworkPrefix}}|tail -1
+    register: temp_managementNetworkIP
+
+  - name: Get tunnel network address of hosts
+    shell: ip addr show|grep {{tunnelNetworkPrefix}}|awk {'print $2'}|sed -r "s/\//\n/g"|grep {{tunnelNetworkPrefix}}|tail -1
+    register: temp_tunnelNetworkIP
+
+  - name: Set facts of addresses found
+    set_fact: 
+        managementNetworkIP: "{{ temp_managementNetworkIP.stdout }}"
+        tunnelNetworkIP: "{{temp_tunnelNetworkIP.stdout}}"
+
+  - name: Remove 127.0.1.1 from hosts file.
+    lineinfile: dest=/etc/hosts state=absent regexp="^127.0.1.1"
+ 
+  - name: Install NTP package
+    apt: name=ntp update_cache=no state=present
+ 
+  - name: Install Ubuntu cloud-keyring
+    apt: name=ubuntu-cloud-keyring state=present
+ 
+  - name: Add juno repository
+    shell: echo "deb http://ubuntu-cloud.archive.canonical.com/ubuntu" "trusty-updates/juno main" > /etc/apt/sources.list.d/cloudarchive-juno.list
+ 
+  - name: Update cache
+    apt: 
+       update_cache: yes 
+       cache_valid_time: 600
+
+  - name: Upgrade everything
+    apt: 
+       upgrade: dist 
+       cache_valid_time: 600
+
+ #   delegate_to: 127.0.0.1
+
+#  - name: Get volumes Type
+#    shell: "nova {{ osDetails }} volume-list | grep {{ ansible_default_ipv4.address }} | awk '{print $6}'| cut -d'-' -f3"
+#    register: volumeType
+#    ignore_errors: true
+#    delegate_to: 127.0.0.1
+
+#  - name: Get Server Type
+#    shell: "nova {{ osDetails }} list | grep -i {{ ansible_default_ipv4.address }} | awk '{print $4}' | cut -d '-' -f1"
+#    register: serverInstanceType
+#    delegate_to: 127.0.0.1
+
+#  - name: Get block device of the volume from CoreOS
+#    shell: blockDevice=$(ls /dev/disk/by-id | grep virtio | sed -r 's/virtio-//' | grep $(echo "{{ item }}" | cut -c1-20));ls -ltr /dev/disk/by-id/ | grep $blockDevice | awk '{print $NF}' | awk -F/ '{print $NF}';
+#    with_items: volumeID.stdout_lines                
+#    register: blockDevice
+
+#  - name: Debug var
+#    debug: msg="{{ item }}"
+#    with_items: blockDevice.results
+
+#  - name: Create Filesystem for volume
+##    filesystem: fstype=ext4 dev=/dev/"{{ item.stdout }}" # opts="-L portal"
+#    with_items: blockDevice.results
+#    sudo: true
+
+#  - name: Mount volumes
+#    shell: mkdir -p /breeze/volumes/"{{ item.1 }}"; if [[ "$(df -h | grep {{ item.0.stdout }})" == "" ]]; then mount /dev/"{{ item.0.stdout }}" /breeze/volumes/"{{ item.1 }}"; fi
+#    with_together:
+#    - blockDevice.results
+#    - volumeType.stdout_lines
+#    sudo: true
+
+#  - name: Fill template of auto mount file
+#    template:  src=template.automount dest=/etc/systemd/system/breeze-volumes-"{{ item.1 }}".automount
+#    with_together:
+#    - blockDevice.results
+#    - volumeType.stdout_lines
+#    sudo: true
+
+#  - name: Fill template of mount file
+#    template: src=template.mount dest=/etc/systemd/system/breeze-volumes-"{{ item.1 }}".mount
+#    with_together:
+#    - blockDevice.results
+#    - volumeType.stdout_lines
+#    sudo: true
+
+### Handlers ##############################  TO DO
+
+#  - name: Disable mount unit file
+#    shell: systemctl disable breeze-volumes-"{{ item }}".mount
+#    with_items: volumeType.stdout_lines
+#    sudo: true
+
+#  - name: Enable automount unit file
+#    shell: systemctl enable breeze-volumes-"{{ item }}".automount
+#    with_items: volumeType.stdout_lines
+#    sudo: true
+

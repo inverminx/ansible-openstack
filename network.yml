@@ -1,0 +1,10 @@
+---
+- hosts: network
+  sudo: yes
+  vars:
+  vars_files:
+    - vars/junoConfiguration.yml
+  
+  roles:
+   - nodeBasic
+   - neutron-network

@@ -1,0 +1,85 @@
+---
+#Glance installation
+  - name: ensure glance database is present
+    mysql_db:
+      name: glance
+
+  - name: ensure glance database user is present
+    mysql_user:
+      name: glance
+      host: "{{ item }}"
+      password: "{{ glanceMysqlPassword }}"
+      priv: glance.*:ALL
+    with_items:
+      - "%"
+      - localhost
+
+  - name: create glance user in keystone
+    keystone_user: 
+      endpoint: "{{ keystoneAdminUrl }}"
+      token: "{{ adminToken }}"
+      tenant:  "{{ serviceTenantName }}"
+      user: glance
+      password: "{{ glanceMysqlPassword }}"
+
+  - name: add glance user to the service tenant with the admin role
+    keystone_user:
+      endpoint: "{{ keystoneAdminUrl }}"
+      token: "{{ adminToken }}"
+      tenant: "{{ serviceTenantName }}"
+      user: glance
+      role: admin
+
+  - name: add glance endpoint
+    keystone_service:
+      endpoint: "{{ keystoneAdminUrl }}"
+      token: "{{ adminToken }}"
+      region: "{{ regionName }}"
+      name: glance
+      type: image
+      description: "Image Service"
+      public_url: "{{ glancePublicUrl }}"
+      internal_url: "{{ glanceInternalUrl }}"
+      admin_url: "{{ glanceAdminUrl }}"
+
+#  - name: ensure glance is stopped
+#    service:
+#      name: "{{ item }}"
+#      state: stopped
+#    with_items:
+#     - glance-api
+#     - glance-registry
+
+  - name: Install glance
+    apt: name={{item}} state=present
+    with_items: 
+      - glance
+      - python-glanceclient
+
+  - name: ensure glance sqlite is deleted
+    file:
+      dest: /var/lib/glance/glance.db
+      state: absent
+
+  - name: update glance configuration files from templates
+    template:
+      src: "{{ item }}"
+      dest: /etc/glance/{{ item }}
+      owner: "glance"
+      group: "glance"
+      mode: 0600
+    with_items: 
+     - glance-api.conf
+     - glance-registry.conf
+
+  - name: ensure database is synced
+    command: /usr/bin/glance-manage db_sync
+
+  - name: ensure services are started and enabled
+    service:
+      name: "{{ item }}"
+      state: restarted
+      enabled: yes
+    with_items: 
+     - glance-api
+     - glance-registry

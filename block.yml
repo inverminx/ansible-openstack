@@ -1,0 +1,10 @@
+---
+- hosts: block
+  sudo: yes
+  vars:
+  vars_files:
+    - vars/junoConfiguration.yml
+
+  roles:
+   - nodeBasic 
+   - cinder-block

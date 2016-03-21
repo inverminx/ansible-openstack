@@ -1,0 +1,42 @@
+---
+# Node basic init
+  - name: Get management network address of hosts
+    shell: ip addr show|grep {{managementNetworkPrefix}}|awk {'print $2'}|sed -r "s/\//\n/g"|grep {{managementNetworkPrefix}}|tail -1
+    register: temp_managementNetworkIP
+
+  - name: Get tunnel network address of hosts
+    shell: ip addr show|grep {{tunnelNetworkPrefix}}|awk {'print $2'}|sed -r "s/\//\n/g"|grep {{tunnelNetworkPrefix}}|tail -1
+    register: temp_tunnelNetworkIP
+
+  - name: Set facts of addresses found
+    set_fact: 
+        managementNetworkIP: "{{ temp_managementNetworkIP.stdout }}"
+        tunnelNetworkIP: "{{temp_tunnelNetworkIP.stdout}}"
+
+  - name: Remove 127.0.1.1 from hosts file.
+    lineinfile: dest=/etc/hosts state=absent regexp="^127.0.1.1"
+ 
+  - name: Install NTP package
+    apt: name=ntp update_cache=no state=present
+
+  - name: Configure ntp to work with controller node
+    shell: echo "server {{controllerHostname}} iburst" > /etc/ntp.conf
+
+  - name: Restart ntp service
+    service: name=ntp state=restarted
+      
+  - name: Install Ubuntu cloud-keyring
+    apt: name=ubuntu-cloud-keyring state=present
+ 
+  - name: Add juno repository
+    shell: echo "deb http://ubuntu-cloud.archive.canonical.com/ubuntu" "trusty-updates/juno main" > /etc/apt/sources.list.d/cloudarchive-juno.list
+ 
+  - name: Update cache
+    apt: 
+       update_cache: yes 
+       cache_valid_time: 600
+
+  - name: Upgrade everything
+    apt: 
+       upgrade: dist 
+       cache_valid_time: 600

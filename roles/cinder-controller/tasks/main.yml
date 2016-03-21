@@ -1,0 +1,90 @@
+---
+#cinder installation (controller part)
+  - name: ensure cinder database is present
+    mysql_db:
+      name: cinder
+
+  - name: ensure cinder database user is present
+    mysql_user:
+      name: cinder
+      host: "{{ item }}"
+      password: "{{ cinderMysqlPassword }}"
+      priv: cinder.*:ALL
+    with_items:
+      - "%"
+      - localhost
+
+  - name: create cinder user in keystone
+    keystone_user: 
+      endpoint: "{{ keystoneAdminUrl }}"
+      token: "{{ adminToken }}"
+      tenant:  "{{ serviceTenantName }}"
+      user: cinder
+      password: "{{ cinderMysqlPassword }}"
+
+  - name: add cinder user to the service tenant with the admin role
+    keystone_user:
+      endpoint: "{{ keystoneAdminUrl }}"
+      token: "{{ adminToken }}"
+      tenant: "{{ serviceTenantName }}"
+      user: cinder
+      role: admin
+
+
+  - name: add cinder endpoint
+    keystone_service:
+      endpoint: "{{ keystoneAdminUrl }}"
+      token: "{{ adminToken }}"
+      region: "{{ regionName }}"
+      name: cinder
+      type: volume
+      description: "Openstack Cinder Service"
+      public_url: "{{ cinderPublicUrl }}"
+      internal_url: "{{ cinderInternalUrl }}"
+      admin_url: "{{ cinderAdminUrl }}"
+
+  - name: add cinder endpoint V2
+    keystone_service:
+      endpoint: "{{ keystoneAdminUrl }}"
+      token: "{{ adminToken }}"
+      region: "{{ regionName }}"
+      name: cinderv2
+      type: volumev2
+      description: "Openstack Cinder Service"
+      public_url: "{{ cinderPublicUrlV2 }}"
+      internal_url: "{{ cinderInternalUrlV2 }}"
+      admin_url: "{{ cinderAdminUrlV2 }}"
+
+  - name: Install cinder
+    apt: name={{item}} state=present
+    with_items: 
+      - cinder-api
+      - cinder-scheduler
+      - python-cinderclient
+
+  - name: ensure cinder sqlite is deleted
+    file:
+      dest: /var/lib/cinder/cinder.sqlite
+      state: absent
+
+  - name: update cinder configuration files from templates
+    template:
+      src: "{{ item }}"
+      dest: /etc/cinder/{{ item }}
+      owner: "cinder"
+      group: "cinder"
+      mode: 0600
+    with_items: 
+     - cinder.conf
+ 
+  - name: Populate cinder service database
+    shell: su -s /bin/sh -c "cinder-manage db sync" cinder
+
+  - name: ensure services are started and enabled
+    service:
+      name: "{{ item }}"
+      state: restarted
+      enabled: yes
+    with_items: 
+      - cinder-scheduler
+      - cinder-api

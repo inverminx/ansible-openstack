@@ -1,0 +1,96 @@
+---
+#Neutron installation (controller part)
+  - name: ensure neutron database is present
+    mysql_db:
+      name: neutron
+
+  - name: ensure neutron database user is present
+    mysql_user:
+      name: neutron
+      host: "{{ item }}"
+      password: "{{ neutronMysqlPassword }}"
+      priv: neutron.*:ALL
+    with_items:
+      - "%"
+      - localhost
+
+  - name: create neutron user in keystone
+    keystone_user: 
+      endpoint: "{{ keystoneAdminUrl }}"
+      token: "{{ adminToken }}"
+      tenant:  "{{ serviceTenantName }}"
+      user: neutron
+      password: "{{ neutronMysqlPassword }}"
+
+  - name: add neutron user to the service tenant with the admin role
+    keystone_user:
+      endpoint: "{{ keystoneAdminUrl }}"
+      token: "{{ adminToken }}"
+      tenant: "{{ serviceTenantName }}"
+      user: neutron
+      role: admin
+
+
+  - name: add neutron endpoint
+    keystone_service:
+      endpoint: "{{ keystoneAdminUrl }}"
+      token: "{{ adminToken }}"
+      region: "{{ regionName }}"
+      name: neutron
+      type: network
+      description: "Neutron Service"
+      public_url: "{{ neutronPublicUrl }}"
+      internal_url: "{{ neutronInternalUrl }}"
+      admin_url: "{{ neutronAdminUrl }}"
+
+  - name: Install neutron
+    apt: name={{item}} state=present
+    with_items: 
+      - neutron-server
+      - neutron-plugin-ml2
+      - python-neutronclient
+
+  - name: ensure neutron sqlite is deleted
+    file:
+      dest: /var/lib/neutron/neutron.sqlite
+      state: absent
+
+  - name: Get service tenant ID
+    shell: keystone --os-tenant-name {{adminTenantName}} --os-username {{adminUserName}} --os-password {{adminPassword}} --os-auth-url {{authUrl}} tenant-get {{serviceTenantName}}|grep -w id|awk {'print $4'}
+    register: serviceTenantID
+
+  - name: update neutron configuration files from templates
+    template:
+      src: "{{ item }}"
+      dest: /etc/neutron/{{ item }}
+      owner: "neutron"
+      group: "neutron"
+      mode: 0600
+    with_items: 
+     - neutron.conf
+ 
+  - name: update ml2 configuration files from templates
+    template:
+      src: "{{ item }}"
+      dest: /etc/neutron/plugins/ml2/{{ item }}
+      owner: "neutron"
+      group: "neutron"
+      mode: 0600
+    with_items: 
+     - ml2_conf.ini
+ #  - name: ensure database is synced
+#    command: /usr/bin/neutron-manage db_sync
+
+  - name: Populate neutron service database
+    shell: su -s /bin/sh -c "neutron-db-manage --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/plugins/ml2/ml2_conf.ini upgrade juno" neutron
+
+  - name: ensure services are started and enabled
+    service:
+      name: "{{ item }}"
+      state: restarted
+      enabled: yes
+    with_items: 
+      - neutron-server
+      - nova-api
+      - nova-scheduler
+      - nova-conductor

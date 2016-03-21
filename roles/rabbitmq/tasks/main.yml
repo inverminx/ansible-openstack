@@ -1,0 +1,14 @@
+---
+#Rabbitmq installation
+  - name: Install rabbitmq-server
+    apt: name=rabbitmq-server state=present
+ 
+  - name: Replace rabbitmq password
+    shell: rabbitmqctl change_password guest {{rabbitmqPassword}}
+
+  - name: Add config file to rabbitmq with loopback_users empty
+    shell: echo "[{rabbit, [{loopback_users, []}]}]." > /etc/rabbitmq/rabbitmq.config
+
+  - name: Restart rabbitmq-server service
+    service: name=rabbitmq-server state=restarted
+  

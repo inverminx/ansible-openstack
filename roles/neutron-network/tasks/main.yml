@@ -1,0 +1,84 @@
+---
+#NEUTRON - Network node part
+  - name: enable net.ipv4.ip_forward in sysctl
+    sysctl:
+      name: net.ipv4.ip_forward
+      value: "1"
+      state: present
+
+  - name: enable net.ipv4.conf.all.forwarding in sysctl
+    sysctl:
+      name: net.ipv4.conf.all.forwarding
+      value: "1"
+      state: present
+
+  - name: disable net.ipv4.conf.all.rp_filter in sysctl
+    sysctl:
+      name: net.ipv4.conf.all.rp_filter
+      value: "0"
+      state: present
+
+  - name: disable net.ipv4.conf.default.rp_filter in sysctl
+    sysctl:
+      name: net.ipv4.conf.default.rp_filter
+      value: "0"
+      state: present
+
+  - name: Install neutron
+    apt: name={{item}} state=present
+    with_items: 
+      - neutron-plugin-ml2
+      - neutron-plugin-openvswitch-agent
+      - neutron-l3-agent
+      - neutron-dhcp-agent
+
+  - name: update neutron configuration files from templates
+    template:
+      src: "{{ item }}"
+      dest: /etc/neutron/{{ item }}
+      owner: "neutron"
+      group: "neutron"
+      mode: 0600
+    with_items: 
+     - neutron.conf
+     - l3_agent.ini
+     - dhcp_agent.ini
+     - metadata_agent.ini
+
+  - name: update ovs configuration files from templates
+    template:
+      src: "{{ item }}"
+      dest: /etc/neutron/plugins/ml2/{{ item }}
+      owner: "neutron"
+      group: "neutron"
+      mode: 0600
+    with_items: 
+     - ml2_conf.ini
+
+  - name: ensure neutron sqlite is deleted
+    file:
+      dest: /var/lib/neutron/neutron.sqlite
+      state: absent
+
+  - name: ensure openvswitch-switch is started and enabled
+    service:
+      name: openvswitch-switch
+      state: restarted
+      enabled: yes
+
+  - name: ensure ovs external bridge is present
+    command: /usr/bin/ovs-vsctl -- --may-exist add-br br-ex
+
+  - name: ensure br-ex has external nic enslaved
+    command: /usr/bin/ovs-vsctl -- --may-exist add-port br-ex {{ physicalExternalNetworkInterface }}
+
+  - name: ensure services are started and enabled
+    service:
+      name: "{{ item }}"
+      state: restarted
+      enabled: yes
+    with_items: 
+      - neutron-plugin-openvswitch-agent
+      - neutron-l3-agent
+      - neutron-dhcp-agent
+      - neutron-metadata-agent

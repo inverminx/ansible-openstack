@@ -1,0 +1,15 @@
+---
+- hosts: all
+  sudo: yes
+  vars:
+  vars_files:
+    - vars/junoConfiguration.yml
+  
+  tasks:
+   - name: find management IP 
+     shell: echo "{{ ansible_all_ipv4_addresses }}"|sed -r "s/u'/\n/g"|grep 10.10.10|sed -r "s/',//g"|sed -r "s/ //g" 
+
+
+   - name: find tunnel IP
+     shell: echo "{{ ansible_all_ipv4_addresses }}"|sed -r "s/u'/\n/g"|grep 20.20.20|sed -r "s/',//g"|sed -r "s/ //g"
+

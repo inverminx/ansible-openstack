@@ -1,0 +1,35 @@
+---
+# cinder - Block node part
+
+  - name: Install cinder
+    apt: name={{item}} state=present
+    with_items: 
+      - lvm2
+      - cinder-volume
+      - python-mysqldb
+
+  - name: update cinder configuration files from templates
+    template:
+      src: "{{ item }}"
+      dest: /etc/cinder/{{ item }}
+      owner: "cinder"
+      group: "cinder"
+      mode: 0600
+    with_items: 
+     - cinder.conf
+
+  - name: create cinder-volumes volume group
+    lvg:
+      vg: cinder-volumes
+      pvs: "/dev/{{ volume_devices|join(',/dev/') }}"
+      state: present
+      vg_options: ""
+
+  - name: ensure services are started and enabled
+    service:
+      name: "{{ item }}"
+      state: restarted
+      enabled: yes
+    with_items: 
+      - tgt
+      - cinder-volume

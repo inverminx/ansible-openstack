@@ -1,0 +1,48 @@
+---
+# Neutron - compute node part
+  - name: disable net.ipv4.conf.all.rp_filter in sysctl
+    sysctl:
+      name: net.ipv4.conf.all.rp_filter
+      value: "0"
+      state: present
+
+  - name: disable net.ipv4.conf.default.rp_filter in sysctl
+    sysctl:
+      name: net.ipv4.conf.default.rp_filter
+      value: "0"
+      state: present
+
+  - name: Install neutron
+    apt: name={{item}} state=present
+    with_items: 
+      - neutron-plugin-ml2
+      - neutron-plugin-openvswitch-agent
+
+  - name: update neutron configuration files from templates
+    template:
+      src: "{{ item }}"
+      dest: /etc/neutron/{{ item }}
+      owner: "neutron"
+      group: "neutron"
+      mode: 0600
+    with_items: 
+     - neutron.conf
+
+  - name: update ovs configuration files from templates
+    template:
+      src: "{{ item }}"
+      dest: /etc/neutron/plugins/ml2/{{ item }}
+      owner: "neutron"
+      group: "neutron"
+      mode: 0600
+    with_items: 
+     - ml2_conf.ini
+
+  - name: ensure services are started and enabled
+    service:
+      name: "{{ item }}"
+      state: restarted
+      enabled: yes
+    with_items: 
+      - neutron-plugin-openvswitch-agent
+      - nova-compute

@@ -1,0 +1,91 @@
+---
+#Keystone installation
+  - name: ensure keystone database is present
+    mysql_db:
+      name: keystone
+
+  - name: ensure keystone database user is present
+    mysql_user:
+      name: keystone
+      host: "{{ item }}"
+      password: "{{ keystoneMysqlPassword }}"
+      priv: keystone.*:ALL
+    with_items:
+      - "%"
+      - localhost
+
+  - name: Install keystone and keystone client
+    apt: name={{item}} state=present
+    with_items: 
+      - keystone
+      - python-keystoneclient
+
+  - name: Configure keystone.conf
+    template:  src=keystone.conf dest=/etc/keystone/keystone.conf
+
+  - name: Populate the Identity service database
+    shell: su -s /bin/sh -c "keystone-manage db_sync" keystone
+
+  - name: Restart keystone service
+    service: name=keystone state=restarted
+
+  - name: wait for keystone to come back up
+    wait_for:
+      host: "{{ controllerHostname }}"
+      port: 35357
+
+  - name: remove default keystone SQLite db
+    file: path=/var/lib/keystone/keystone.db state=absent
+
+  - name: Add cron to flush old tokens
+    shell: (crontab -l -u keystone 2>&1 | grep -q token_flush) || echo '@hourly /usr/bin/keystone-manage token_flush >/var/log/keystone/keystone-tokenflush.log 2>&1'   >> /var/spool/cron/crontabs/keystone
+
+  - name: create service tenant
+    keystone_user:
+      endpoint: "{{ keystoneAdminUrl }}"
+      token: "{{ adminToken }}"
+      tenant: "{{ serviceTenantName }}"
+      tenant_description: "Service Tenant"
+
+  - name: add keystone endpoint information
+    keystone_service:
+      endpoint: "{{ keystoneAdminUrl }}"
+      token: "{{ adminToken }}"
+      region: "{{ regionName }}"
+      name: keystone
+      type: identity
+      description: "Identity Service"
+      public_url: "{{ keystonePublicUrl }}"
+      internal_url: "{{ keystoneInternalUrl }}"
+      admin_url: "{{ keystoneAdminUrl }}"
+
+  - name: create admin tenant
+    keystone_user:
+      endpoint: "{{ keystoneAdminUrl }}"
+      token: "{{ adminToken }}"
+      tenant: admin
+      tenant_description: "Admin Tenant"
+
+  - name: create admin user
+    keystone_user:
+      endpoint: "{{ keystoneAdminUrl }}"
+      token: "{{ adminToken }}"
+      tenant: admin
+      user: admin
+      password: "{{ adminPassword }}"
+
+  - name: create admin role and associate it with admin user
+    keystone_user:
+      endpoint: "{{ keystoneAdminUrl }}"
+      token: "{{ adminToken }}"
+      tenant: admin
+      user: admin
+      role: admin
+
+  - name: create Member role and associate it with admin user
+    keystone_user:
+      endpoint: "{{ keystoneAdminUrl }}"
+      token: "{{ adminToken }}"
+      tenant: admin
+      user: admin
+      role: Member

@@ -1,0 +1,49 @@
+---
+
+isVerbose: "True"
+controllerHostname: "controller"
+glanceHostname: "controller"
+rabbitUser: "guest"
+rabbitmqPassword: "Aa123456"
+mysqlRootPassword: "Aa123456"
+
+# KEYSTONE
+keystoneAdminUrl: http://{{controllerHostname}}:35357/v2.0
+authUrl: http://{{controllerHostname}}:35357/v2.0
+keystoneInternalUrl: http://{{controllerHostname}}:5000/v2.0
+keystonePublicUrl: http://{{controllerHostname}}:5000/v2.0
+adminTenantName: "admin"
+adminUserName: "admin"
+serviceTenantName: "keystone"
+adminToken: "d3458870720beac8605a"
+keystoneMysqlPassword: "Aa123456"
+regionName: "regionOne"
+adminPassword: "admin"
+
+# GLANCE
+glanceMysqlPassword: "Aa123456"
+glanceAdminUrl: "http://{{controllerHostname}}:9292"
+glancePublicUrl: "http://{{controllerHostname}}:9292"
+glanceInternalUrl: "http://{{controllerHostname}}:9292"
+
+# NOVA
+novaMysqlPassword: "Aa123456"
+novaAdminUrl: "http://{{ controllerHostname }}:8774/v2/%(tenant_id)s"
+novaPublicUrl: "http://{{ controllerHostname }}:8774/v2/%(tenant_id)s"
+novaInternalUrl: "http://{{ controllerHostname }}:8774/v2/%(tenant_id)s"
+
+#NEUTRON
+neutronMysqlPassword: "Aa123456"
+neutronAdminUrl: "http://{{controllerHostname}}:9696"
+neutronPublicUrl: "http://{{controllerHostname}}:9696"
+neutronInternalUrl: "http://{{controllerHostname}}:9696"
+metadataSecret: "secret"
+
+#CINDER
+cinderMysqlPassword: "Aa123456"
+cinderAdminUrl: "http://{{controllerHostname}}:8776/v1/%(tenant_id)s"
+cinderPublicUrl: "http://{{controllerHostname}}:8776/v1/%(tenant_id)s"
+cinderInternalUrl: "http://{{controllerHostname}}:8776/v1/%(tenant_id)s"
+cinderAdminUrlV2: "http://{{controllerHostname}}:8776/v1/%(tenant_id)s"
+cinderPublicUrlV2: "http://{{controllerHostname}}:8776/v1/%(tenant_id)s"
+cinderInternalUrlV2: "http://{{controllerHostname}}:8776/v1/%(tenant_id)s"

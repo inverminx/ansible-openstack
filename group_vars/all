@@ -1,0 +1,5 @@
+---
+isVerbose: "True"
+managementNetworkPrefix: "10.10.10"
+tunnelNetworkPrefix: "10.20.20"
+volume_devices: [ sdb ]

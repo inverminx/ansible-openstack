@@ -1,0 +1,89 @@
+---
+#Nova installation (controller part)
+  - name: ensure nova database is present
+    mysql_db:
+      name: nova
+
+  - name: ensure nova database user is present
+    mysql_user:
+      name: nova
+      host: "{{ item }}"
+      password: "{{ novaMysqlPassword }}"
+      priv: nova.*:ALL
+    with_items:
+      - "%"
+      - localhost
+
+  - name: create nova user in keystone
+    keystone_user: 
+      endpoint: "{{ keystoneAdminUrl }}"
+      token: "{{ adminToken }}"
+      tenant:  "{{ serviceTenantName }}"
+      user: nova
+      password: "{{ novaMysqlPassword }}"
+
+  - name: add nova user to the service tenant with the admin role
+    keystone_user:
+      endpoint: "{{ keystoneAdminUrl }}"
+      token: "{{ adminToken }}"
+      tenant: "{{ serviceTenantName }}"
+      user: nova
+      role: admin
+
+
+  - name: add nova endpoint
+    keystone_service:
+      endpoint: "{{ keystoneAdminUrl }}"
+      token: "{{ adminToken }}"
+      region: "{{ regionName }}"
+      name: nova
+      type: compute
+      description: "Compute Service"
+      public_url: "{{ novaPublicUrl }}"
+      internal_url: "{{ novaInternalUrl }}"
+      admin_url: "{{ novaAdminUrl }}"
+
+  - name: Install nova
+    apt: name={{item}} state=present
+    with_items: 
+      - nova-api
+      - nova-cert
+      - nova-conductor
+      - nova-consoleauth
+      - nova-novncproxy
+      - nova-scheduler
+      - python-novaclient
+
+  - name: ensure nova sqlite is deleted
+    file:
+      dest: /var/lib/nova/nova.sqlite
+      state: absent
+
+  - name: update nova configuration files from templates
+    template:
+      src: controller.{{ item }}
+      dest: /etc/nova/{{ item }}
+      owner: "nova"
+      group: "nova"
+      mode: 0600
+    with_items: 
+     - nova.conf
+
+#  - name: ensure database is synced
+#    command: /usr/bin/nova-manage db_sync
+
+  - name: Populate nova service database
+    shell: su -s /bin/sh -c "nova-manage db sync" nova
+
+  - name: ensure services are started and enabled
+    service:
+      name: "{{ item }}"
+      state: restarted
+      enabled: yes
+    with_items: 
+      - nova-api
+      - nova-cert
+      - nova-conductor
+      - nova-consoleauth
+      - nova-novncproxy
+      - nova-scheduler

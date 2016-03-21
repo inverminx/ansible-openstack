@@ -1,0 +1,43 @@
+---
+#Nova installation (compute part)
+
+  - name: Install nova compute components
+    apt: name={{item}} state=present
+    with_items: 
+      - nova-compute
+      - sysfsutils
+
+  - name: update nova configuration files from templates
+    template:
+      src: compute.{{ item }}
+      dest: /etc/nova/{{ item }}
+      owner: "nova"
+      group: "nova"
+      mode: 0600
+    with_items: 
+     - nova.conf
+
+
+  - name: ensure services are started and enabled
+    service:
+      name: "{{ item }}"
+      state: restarted
+      enabled: yes
+    with_items: 
+      - nova-compute
+
+  - name: Check if compute node supports hardware acceleration for virtual machines
+    shell:  egrep -c '(vmx|svm)' /proc/cpuinfo
+    ignore_errors: True
+    register: isAccelerationSupported
+
+  - name: Change hardware configuration from KVM to QEMU   
+    template:
+      src: "{{ item }}"
+      dest: /etc/nova/{{ item }}
+      owner: "nova"
+      group: "nova"
+      mode: 0600
+    with_items: 
+     - nova-compute.conf
+    when: isAccelerationSupported.rc != 0
